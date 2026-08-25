@@ -328,43 +328,69 @@
         let calculoUltimo = { dosisTotal: "0.00", volTotal: "0.00", valido: false };
 
         async function fetchMedicoData() {
-            try {
-                const res = await fetch('/api/telemetria');
-                if (res.redirected) {
-                    window.location.href = "/login";
-                    return;
-                }
-                if (!res.ok) throw new Error("Error en la respuesta del servidor");
-                const data = await res.json();
+     try {
+        const res = await fetch('/api/telemetria');
 
-                document.getElementById('med-sync-time').innerText = data.ultima_actualizacion || '--:--:--';
-                document.getElementById('med-val-temp').innerHTML = `${Number(data.temperatura || 0).toFixed(1)} <span class="fs-5">°C</span>`;
-                document.getElementById('med-val-bpm').innerHTML = `${data.ritmo_cardiaco || 0} <span class="fs-5">BPM</span>`;
-                document.getElementById('med-val-act').innerText = data.actividad ? data.actividad.estado : '--';
-                document.getElementById('med-val-arnes').innerText = data.pechera_puesta ? "Seguro" : "¡Suelto!";
+        // 1. Manejo estricto de falta de sesión o redirección al Login
+        if (res.status === 401 || res.redirected) {
+            window.location.href = "/login";
+            return;
+        }
 
-                const diag = data.diagnostico || { badge_class: 'bg-secondary', salud_mascota: 'Sin Datos', mensaje: 'Procesando...' };
-                document.getElementById('med-diag-badge').className = `badge ${diag.badge_class}`;
-                document.getElementById('med-diag-badge').innerText = diag.salud_mascota;
-                document.getElementById('med-arnes-badge').className = data.pechera_puesta ? "badge bg-success" : "badge bg-danger";
-                document.getElementById('med-arnes-badge').innerText = data.pechera_puesta ? "Arnes Correcto" : "Arnes Suelto";
-                document.getElementById('med-diag-desc').innerText = diag.mensaje;
+        if (!res.ok) throw new Error("Error en la respuesta del servidor");
 
-                const gpsBadge = document.getElementById('med-gps-badge');
-                if (data.gps && data.gps.valido) {
-                    gpsBadge.className = "badge bg-success";
-                    gpsBadge.innerText = "GPS Activo";
+        const data = await res.json();
+
+        // 2. Actualización de reloj proveniente del servidor (Ecuador UTC-5)
+        document.getElementById('med-sync-time').innerText = data.ultima_actualizacion || '--:--:--';
+        
+        // 3. Lecturas fijadas en 0 (Modo Standby / Sin datos)
+        document.getElementById('med-val-temp').innerHTML = `${Number(data.temperatura || 0).toFixed(1)} <span class="fs-5">°C</span>`;
+        document.getElementById('med-val-bpm').innerHTML = `${data.ritmo_cardiaco || 0} <span class="fs-5">BPM</span>`;
+        document.getElementById('med-val-act').innerText = data.actividad ? data.actividad.estado : 'En espera';
+        document.getElementById('med-val-arnes').innerText = data.pechera_puesta ? "Seguro" : "Desconectado";
+
+        // 4. Estado de Salud y Badges
+        const diag = data.diagnostico || { badge_class: 'bg-secondary', salud_mascota: 'Arnés Desconectado', mensaje: 'Sin lecturas activas' };
+        
+        const diagBadge = document.getElementById('med-diag-badge');
+        if (diagBadge) {
+            diagBadge.className = `badge ${diag.badge_class}`;
+            diagBadge.innerText = diag.salud_mascota;
+        }
+
+        const arnesBadge = document.getElementById('med-arnes-badge');
+        if (arnesBadge) {
+            arnesBadge.className = data.pechera_puesta ? "badge bg-success" : "badge bg-secondary";
+            arnesBadge.innerText = data.pechera_puesta ? "Arnés Conectado" : "Arnés Desconectado";
+        }
+
+        const diagDesc = document.getElementById('med-diag-desc');
+        if (diagDesc) {
+            diagDesc.innerText = diag.mensaje;
+        }
+
+        // 5. Estado GPS
+        const gpsBadge = document.getElementById('med-gps-badge');
+        if (gpsBadge) {
+            if (data.gps && data.gps.valido) {
+                gpsBadge.className = "badge bg-success";
+                gpsBadge.innerText = "GPS Activo";
+                if (typeof medicoMarker !== 'undefined' && typeof medicoMap !== 'undefined') {
                     const pos = new L.LatLng(data.gps.latitud, data.gps.longitud);
                     medicoMarker.setLatLng(pos);
                     medicoMap.panTo(pos);
-                } else {
-                    gpsBadge.className = "badge bg-warning text-dark";
-                    gpsBadge.innerText = "GPS Sin Senal";
                 }
-            } catch (e) {
-                console.error("Error telemetria:", e);
+            } else {
+                gpsBadge.className = "badge bg-secondary";
+                gpsBadge.innerText = "GPS En Espera";
             }
         }
+
+    } catch (e) {
+        console.error("Error cargando telemetría:", e);
+    }
+}
 
         // --- FUNCIONES DE CALCULADORA ---
         function seleccionarFarmacoPreset() {
@@ -590,9 +616,10 @@
             }
         }
 
-        // Bucle de sincronización de telemetría en tiempo real
-        // Cambiar el temporizador a 20000 ms (20 segundos)
-        setInterval(cargarTelemetria, 20000);
+        fetchMedicoData();
+
+// Sincronizar y consultar al servidor exactamente cada 20 segundos (20000 ms)
+setInterval(fetchMedicoData, 20000);
     </script>
 </body>
 </html>
