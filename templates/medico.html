@@ -591,8 +591,8 @@
         }
 
         // Bucle de sincronización de telemetría en tiempo real
-        setInterval(fetchMedicoData, 2000);
-        fetchMedicoData();
+        // Cambiar el temporizador a 20000 ms (20 segundos)
+        setInterval(cargarTelemetria, 20000);
     </script>
 </body>
 </html>
