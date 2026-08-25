@@ -17,6 +17,10 @@
         .metric-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: #7f8c8d; font-weight: 600; }
         .pulse-danger { animation: pulseRed 1.2s infinite; }
         @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); } 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); } }
+        /* Ocultar la barra y marca de texto de Leaflet en el mapa del dueño */
+       .leaflet-control-attribution {
+        display: none !important;
+}
     </style>
 </head>
 <body>
