@@ -7,11 +7,11 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "vettag_telemetry_secure_key")
 
-# Sistema de credenciales dinámicas (inicia con admin / admin123 por defecto)
+# Estructura de credenciales dinámica (Vacía por defecto: la define el usuario)
 DATOS_USUARIO = {
-    "usuario": "admin",
-    "clave": "admin123",
-    "fecha_ultimo_cambio": datetime.date.today()
+    "usuario": None,
+    "clave": None,
+    "fecha_ultimo_cambio": None
 }
 
 # Base de datos en memoria para el historial de prescripciones
@@ -19,12 +19,14 @@ HISTORIAL_DOSIS = []
 PROXIMO_ID_DOSIS = 1
 
 def requiere_cambio_clave():
-    """Verifica si han transcurrido más de 30 días desde la última actualización de contraseña."""
+    """Verifica si han transcurrido 30 días o más desde la última actualización."""
+    if not DATOS_USUARIO["fecha_ultimo_cambio"]:
+        return False
     dias_transcurridos = (datetime.date.today() - DATOS_USUARIO["fecha_ultimo_cambio"]).days
     return dias_transcurridos >= 30
 
 def login_required(f):
-    """Decorador para proteger las rutas del sistema."""
+    """Protege las rutas del sistema."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('usuario_autenticado'):
@@ -33,7 +35,7 @@ def login_required(f):
     return decorated_function
 
 def evaluar_estado_clinico(temp, bpm, arnes_puesto):
-    """Calcula el diagnóstico por IA según los rangos vitales del paciente."""
+    """Calcula el diagnóstico según constantes vitales del paciente."""
     if not arnes_puesto:
         return {
             "salud_mascota": "Arnés Desconectado",
@@ -80,25 +82,33 @@ def evaluar_estado_clinico(temp, bpm, arnes_puesto):
 
 @app.route('/')
 def inicio():
-    """Redirige automáticamente según el estado de la sesión."""
+    """Redirige según el estado del registro y la sesión."""
+    if not DATOS_USUARIO["usuario"]:
+        return redirect(url_for('cambiar_credenciales'))
     if session.get('usuario_autenticado'):
         return redirect(url_for('panel_medico'))
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Maneja el inicio de sesión y detecta la expiración de 30 días."""
-    if request.method == 'POST':
-        usuario_ingresado = request.form.get('usuario')
-        clave_ingresada = request.form.get('clave')
+    """Valida el acceso contra las credenciales guardadas por el usuario."""
+    # Si no hay credenciales guardadas aún, redirige al registro inicial
+    if not DATOS_USUARIO["usuario"]:
+        flash("Configure su usuario y contraseña por primera vez.", "info")
+        return redirect(url_for('cambiar_credenciales'))
 
+    if request.method == 'POST':
+        usuario_ingresado = request.form.get('usuario', '').strip()
+        clave_ingresada = request.form.get('clave', '').strip()
+
+        # Acceso permitido ÚNICAMENTE si coincide con los datos guardados
         if usuario_ingresado == DATOS_USUARIO["usuario"] and clave_ingresada == DATOS_USUARIO["clave"]:
             session['usuario_autenticado'] = True
             session['usuario'] = usuario_ingresado
             
-            # Si transcurrieron 30 días, obliga a cambiar la contraseña
+            # Verificación de política de seguridad de 30 días
             if requiere_cambio_clave():
-                flash("Han pasado 30 días. Por seguridad debe actualizar sus credenciales.", "warning")
+                flash("Han transcurrido 30 días. Por seguridad debe actualizar sus credenciales.", "warning")
                 return redirect(url_for('cambiar_credenciales'))
                 
             return redirect(url_for('panel_medico'))
@@ -108,9 +118,12 @@ def login():
     return render_template('login.html')
 
 @app.route('/cambiar_credenciales', methods=['GET', 'POST'])
-@login_required
 def cambiar_credenciales():
-    """Permite al usuario actualizar su nombre de usuario y contraseña."""
+    """Permite guardar las credenciales por primera vez o modificarlas."""
+    # Si ya existen credenciales guardadas, la ruta exige sesión activa
+    if DATOS_USUARIO["usuario"] and not session.get('usuario_autenticado'):
+        return redirect(url_for('login'))
+
     if request.method == 'POST':
         nuevo_usuario = request.form.get('nuevo_usuario', '').strip()
         nueva_clave = request.form.get('nueva_clave', '').strip()
@@ -119,25 +132,27 @@ def cambiar_credenciales():
             DATOS_USUARIO["usuario"] = nuevo_usuario
             DATOS_USUARIO["clave"] = nueva_clave
             DATOS_USUARIO["fecha_ultimo_cambio"] = datetime.date.today()
+            
+            session['usuario_autenticado'] = True
             session['usuario'] = nuevo_usuario
             
-            flash("Credenciales actualizadas correctamente.", "success")
+            flash("Credenciales guardadas exitosamente.", "success")
             return redirect(url_for('panel_medico'))
         else:
-            flash("Por favor ingrese un usuario y contraseña válidos.", "warning")
+            flash("Ingrese un usuario y contraseña válidos.", "warning")
 
     return render_template('cambiar_credenciales.html')
 
 @app.route('/medico')
 @login_required
 def panel_medico():
-    """Ruta protegida del visor telemétrico."""
+    """Panel principal de telemetría médica."""
     return render_template('medico.html')
 
 @app.route('/api/telemetria', methods=['GET'])
 @login_required
 def api_telemetria():
-    """Genera/Lee los datos telemétricos en tiempo real para el visor del médico."""
+    """Servicio de lectura de datos vitales en tiempo real."""
     temp = round(random.uniform(37.0, 39.8), 1)
     bpm = random.randint(70, 150)
     pechera = random.choice([True, True, True, False])
@@ -162,7 +177,7 @@ def api_telemetria():
 @app.route('/api/guardar_dosis', methods=['POST'])
 @login_required
 def guardar_dosis():
-    """Recibe los datos del modal de cálculo e inserta la receta en el historial."""
+    """Inserta la receta farmacológica en el historial."""
     global PROXIMO_ID_DOSIS
     data = request.get_json() or {}
     
@@ -196,13 +211,13 @@ def guardar_dosis():
 @app.route('/api/historial_dosis', methods=['GET'])
 @login_required
 def obtener_historial_dosis():
-    """Devuelve las prescripciones almacenadas para la tabla."""
+    """Devuelve las recetas registradas."""
     return jsonify(HISTORIAL_DOSIS)
 
 @app.route('/api/eliminar_dosis/<int:id_dosis>', methods=['DELETE'])
 @login_required
 def eliminar_dosis(id_dosis):
-    """Elimina una fila específica por ID."""
+    """Elimina una receta por ID."""
     global HISTORIAL_DOSIS
     HISTORIAL_DOSIS = [item for item in HISTORIAL_DOSIS if item['id'] != id_dosis]
     return jsonify({"status": "success", "deleted_id": id_dosis})
