@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "vettag_telemetry_secure_key")
 
-# Estructura de credenciales dinámica (Vacía por defecto: la define el usuario)
+# Sistema de credenciales en memoria (Inicia dinámico)
 DATOS_USUARIO = {
     "usuario": None,
     "clave": None,
@@ -82,33 +82,28 @@ def evaluar_estado_clinico(temp, bpm, arnes_puesto):
 
 @app.route('/')
 def inicio():
-    """Redirige según el estado del registro y la sesión."""
-    if not DATOS_USUARIO["usuario"]:
-        return redirect(url_for('cambiar_credenciales'))
+    """Ruta principal."""
     if session.get('usuario_autenticado'):
         return redirect(url_for('panel_medico'))
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Valida el acceso contra las credenciales guardadas por el usuario."""
-    # Si no hay credenciales guardadas aún, redirige al registro inicial
+    """Maneja el acceso o la creación inicial de credenciales."""
+    # Si aún no se han configurado credenciales, permite registrar la primera
     if not DATOS_USUARIO["usuario"]:
-        flash("Configure su usuario y contraseña por primera vez.", "info")
         return redirect(url_for('cambiar_credenciales'))
 
     if request.method == 'POST':
         usuario_ingresado = request.form.get('usuario', '').strip()
         clave_ingresada = request.form.get('clave', '').strip()
 
-        # Acceso permitido ÚNICAMENTE si coincide con los datos guardados
         if usuario_ingresado == DATOS_USUARIO["usuario"] and clave_ingresada == DATOS_USUARIO["clave"]:
             session['usuario_autenticado'] = True
             session['usuario'] = usuario_ingresado
             
-            # Verificación de política de seguridad de 30 días
             if requiere_cambio_clave():
-                flash("Han transcurrido 30 días. Por seguridad debe actualizar sus credenciales.", "warning")
+                flash("Han transcurrido 30 días. Debe actualizar sus credenciales.", "warning")
                 return redirect(url_for('cambiar_credenciales'))
                 
             return redirect(url_for('panel_medico'))
@@ -119,11 +114,7 @@ def login():
 
 @app.route('/cambiar_credenciales', methods=['GET', 'POST'])
 def cambiar_credenciales():
-    """Permite guardar las credenciales por primera vez o modificarlas."""
-    # Si ya existen credenciales guardadas, la ruta exige sesión activa
-    if DATOS_USUARIO["usuario"] and not session.get('usuario_autenticado'):
-        return redirect(url_for('login'))
-
+    """Permite guardar las credenciales iniciales o actualizarlas."""
     if request.method == 'POST':
         nuevo_usuario = request.form.get('nuevo_usuario', '').strip()
         nueva_clave = request.form.get('nueva_clave', '').strip()
@@ -139,20 +130,20 @@ def cambiar_credenciales():
             flash("Credenciales guardadas exitosamente.", "success")
             return redirect(url_for('panel_medico'))
         else:
-            flash("Ingrese un usuario y contraseña válidos.", "warning")
+            flash("Ingrese datos válidos.", "warning")
 
     return render_template('cambiar_credenciales.html')
 
 @app.route('/medico')
 @login_required
 def panel_medico():
-    """Panel principal de telemetría médica."""
+    """Ruta protegida del visor telemétrico."""
     return render_template('medico.html')
 
 @app.route('/api/telemetria', methods=['GET'])
 @login_required
 def api_telemetria():
-    """Servicio de lectura de datos vitales en tiempo real."""
+    """Lectura de datos en tiempo real."""
     temp = round(random.uniform(37.0, 39.8), 1)
     bpm = random.randint(70, 150)
     pechera = random.choice([True, True, True, False])
@@ -177,7 +168,7 @@ def api_telemetria():
 @app.route('/api/guardar_dosis', methods=['POST'])
 @login_required
 def guardar_dosis():
-    """Inserta la receta farmacológica en el historial."""
+    """Guarda la prescripción en el historial."""
     global PROXIMO_ID_DOSIS
     data = request.get_json() or {}
     
@@ -211,13 +202,11 @@ def guardar_dosis():
 @app.route('/api/historial_dosis', methods=['GET'])
 @login_required
 def obtener_historial_dosis():
-    """Devuelve las recetas registradas."""
     return jsonify(HISTORIAL_DOSIS)
 
 @app.route('/api/eliminar_dosis/<int:id_dosis>', methods=['DELETE'])
 @login_required
 def eliminar_dosis(id_dosis):
-    """Elimina una receta por ID."""
     global HISTORIAL_DOSIS
     HISTORIAL_DOSIS = [item for item in HISTORIAL_DOSIS if item['id'] != id_dosis]
     return jsonify({"status": "success", "deleted_id": id_dosis})
