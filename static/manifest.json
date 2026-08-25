@@ -1,0 +1,17 @@
+{
+    "name": "Smart Wearable - Telemetría Vterinaria",
+    "short_name": "TelemetríaVet",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#f8f9fa",
+    "theme_color": "#212529",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "https://cdn-icons-png.flaticon.com/512/194/194279.png",
+            "sizes": "512x512",
+            "Type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
