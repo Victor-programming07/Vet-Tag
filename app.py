@@ -2,7 +2,7 @@ import os
 import datetime
 from datetime import timezone, timedelta
 from functools import wraps
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash, send_from_directory
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "vettag_telemetry_secure_key")
@@ -90,14 +90,16 @@ def evaluar_estado_clinico(temp, bpm, arnes_puesto):
 
 @app.route('/')
 def inicio():
-    if session.get('usuario_autenticado'):
-        return redirect(url_for('panel_medico'))
-    return redirect(url_for('login'))
+    # Lo primero que ve el usuario al escanear el QR o entrar al enlace
+    return render_template('logotipo.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if not DATOS_USUARIO["usuario"]:
         return redirect(url_for('cambiar_credenciales'))
+
+    if session.get('usuario_autenticado'):
+        return redirect(url_for('panel_medico'))
 
     if request.method == 'POST':
         usuario_ingresado = request.form.get('usuario', '').strip()
@@ -218,6 +220,10 @@ def eliminar_dosis(id_dosis):
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_from_directory('.', 'manifest.json')
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
