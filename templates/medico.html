@@ -1,291 +1,229 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#212529">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Medico - VetTag Telemetry</title>
-    <!-- CSS Dependencies -->
+    <title>VetTag Workstation - Panel Médico</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        body { background-color: #f0f3f6; font-family: system-ui, -apple-system, sans-serif; }
-        .card-panel { border-radius: 12px; border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.04); background: #ffffff; }
-        #map-medico { height: 320px; width: 100%; border-radius: 10px; z-index: 1; }
-        .val-display { font-size: 2.2rem; font-weight: 800; line-height: 1; }
-        .label-sub { font-size: 0.75rem; text-transform: uppercase; color: #6c757d; font-weight: 700; letter-spacing: 0.5px; }
-        /* Ocultar la barra y marca de texto de Leaflet */
-        .leaflet-control-attribution {
-         display: none !important;
-}
+        :root { --primary-color: #0d6efd; --bg-color: #f8f9fa; }
+        body { background-color: var(--bg-color); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar-brand { font-weight: 700; letter-spacing: 0.5px; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .metric-card { transition: transform 0.2s; }
+        .metric-card:hover { transform: translateY(-3px); }
     </style>
 </head>
 <body>
 
-    <!-- BARRA SUPERIOR -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark px-4 py-2 shadow-sm">
-        <div class="container-fluid">
-            <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="#">
-                <i class="bi bi-activity text-primary fs-4"></i> VetTag Workstation
+    <!-- Navbar Original -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm py-3">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <i class="bi bi-activity text-primary fs-4 me-2"></i>VetTag Workstation
             </a>
             <div class="d-flex align-items-center gap-3">
-                <span class="text-light small"><i class="bi bi-clock me-1"></i> Sync: <strong id="med-sync-time">--:--:--</strong></span>
-                <span class="badge bg-primary px-3 py-2">Modo Clinico Activo</span>
-                <a href="/logout" class="btn btn-outline-danger btn-sm fw-bold">
-                    <i class="bi bi-box-arrow-right"></i> Cerrar Sesion
-                </a>
+                <span class="text-light small" id="reloj-sync"><i class="bi bi-clock me-1"></i>Sync: --:--:--</span>
+                <span class="badge bg-primary px-3 py-2 fs-6">Modo Clinico Activo</span>
+                <a href="/logout" class="btn btn-outline-danger btn-sm px-3"><i class="bi bi-box-arrow-right me-1"></i>Cerrar Sesion</a>
             </div>
         </div>
     </nav>
 
-    <div class="container-fluid px-4 py-3">
-
-        <!-- BOTONES PRINCIPALES -->
-        <div class="row mb-3 g-3">
+    <div class="container my-4">
+        
+        <!-- Botones Principales Superiores (Calculadora y Base de Datos tal cual tu captura) -->
+        <div class="row g-3 mb-4">
             <div class="col-md-6">
-                <button class="btn btn-primary btn-lg w-100 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm py-3" data-bs-toggle="modal" data-bs-target="#modalCalculadora">
-                    <i class="bi bi-calculator-fill fs-3"></i> Abrir Calculadora Farmacologica
+                <button class="btn btn-primary w-100 py-4 fs-5 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2" data-bs-toggle="modal" data-bs-target="#modalCalculadora">
+                    <i class="bi bi-calculator fs-3"></i> Abrir Calculadora Farmacológica
                 </button>
             </div>
             <div class="col-md-6">
-                <button class="btn btn-dark btn-lg w-100 fw-bold d-flex align-items-center justify-content-center gap-2 shadow-sm py-3" data-bs-toggle="modal" data-bs-target="#modalBaseDatos" onclick="cargarTablasDB()">
+                <button class="btn btn-dark w-100 py-4 fs-5 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2" data-bs-toggle="modal" data-bs-target="#modalBaseDatos">
                     <i class="bi bi-database-fill-gear fs-3"></i> Abrir Base de Datos
                 </button>
             </div>
         </div>
 
-        <!-- DIAGNÓSTICO IA -->
-        <div class="row mb-3">
-            <div class="col-12">
-                <div class="card card-panel p-3 border-start border-5 border-primary">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <div class="d-flex align-items-center gap-2">
-                            <i class="bi bi-cpu-fill fs-4 text-primary"></i>
-                            <h5 class="fw-bold mb-0">Analisis Diagnostico por IA</h5>
-                        </div>
+        <!-- Fila Superior: Signos Vitales -->
+        <div class="row g-3 mb-4">
+            <!-- Temperatura -->
+            <div class="col-md-4">
+                <div class="card p-3 metric-card bg-white border-start border-primary border-4">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="badge me-1" id="med-arnes-badge">--</span>
-                            <span class="badge" id="med-diag-badge">--</span>
+                            <h6 class="text-muted text-uppercase fs-7 mb-1">Temperatura Corporal</h6>
+                            <h2 class="fw-bold mb-0 text-primary" id="val-temp">-- °C</h2>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
+                            <i class="bi bi-thermometer-half text-primary fs-3"></i>
                         </div>
                     </div>
-                    <p class="mb-0 text-secondary fw-semibold" id="med-diag-desc">Procesando estado del paciente...</p>
+                </div>
+            </div>
+
+            <!-- Ritmo Cardíaco -->
+            <div class="col-md-4">
+                <div class="card p-3 metric-card bg-white border-start border-danger border-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted text-uppercase fs-7 mb-1">Ritmo Cardíaco</h6>
+                            <h2 class="fw-bold mb-0 text-danger" id="val-bpm">-- BPM</h2>
+                        </div>
+                        <div class="bg-danger bg-opacity-10 p-3 rounded-circle">
+                            <i class="bi bi-activity text-danger fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actividad -->
+            <div class="col-md-4">
+                <div class="card p-3 metric-card bg-white border-start border-success border-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted text-uppercase fs-7 mb-1">Actividad Física</h6>
+                            <h4 class="fw-bold mb-0 text-success" id="val-actividad">--</h4>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                            <i class="bi bi-compass text-success fs-3"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- CONSTANTES VITALES -->
-        <div class="row g-3 mb-3">
-            <div class="col-xl-3 col-md-6">
-                <div class="card card-panel p-3 border-start border-4 border-info h-100">
-                    <span class="label-sub">Temperatura Corporal</span>
-                    <div class="d-flex align-items-baseline justify-content-between mt-2">
-                        <div class="val-display text-info" id="med-val-temp">-- <span class="fs-5">°C</span></div>
-                        <i class="bi bi-thermometer-half fs-2 text-muted"></i>
-                    </div>
-                    <small class="text-muted mt-2 d-block">Rango Normal: 37.5°C - 39.2°C</small>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6">
-                <div class="card card-panel p-3 border-start border-4 border-danger h-100">
-                    <span class="label-sub">Frecuencia Cardiaca</span>
-                    <div class="d-flex align-items-baseline justify-content-between mt-2">
-                        <div class="val-display text-danger" id="med-val-bpm">-- <span class="fs-5">BPM</span></div>
-                        <i class="bi bi-heart-pulse-fill fs-2 text-danger"></i>
-                    </div>
-                    <small class="text-muted mt-2 d-block">Sensor Infrarrojo PPG</small>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6">
-                <div class="card card-panel p-3 border-start border-4 border-warning h-100">
-                    <span class="label-sub">Patron Kinematico</span>
-                    <div class="d-flex align-items-baseline justify-content-between mt-2">
-                        <div class="val-display fs-3 text-dark" id="med-val-act">--</div>
-                        <i class="bi bi-activity fs-2 text-muted"></i>
-                    </div>
-                    <small class="text-muted mt-2 d-block">Acelerometria IMU</small>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6">
-                <div class="card card-panel p-3 border-start border-4 border-success h-100">
-                    <span class="label-sub">Seguridad del Arnes</span>
-                    <div class="d-flex align-items-baseline justify-content-between mt-2">
-                        <div class="val-display fs-3 text-success" id="med-val-arnes">--</div>
-                        <i class="bi bi-shield-check fs-2 text-success"></i>
-                    </div>
-                    <small class="text-muted mt-2 d-block">Sensor Capacitivo</small>
-                </div>
-            </div>
-        </div>
-
-        <!-- RASTREO GPS -->
-        <div class="row g-3">
+        <!-- Fila Central: Diagnóstico de IA -->
+        <div class="row mb-4">
             <div class="col-12">
-                <div class="card card-panel p-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="fw-bold mb-0"><i class="bi bi-geo-alt-fill text-danger me-2"></i>Ubicacion GPS del Paciente</h6>
-                        <span class="badge bg-secondary" id="med-gps-badge">Sin Senal</span>
+                <div class="card p-4 bg-white shadow-sm">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi bi-robot text-primary fs-4 me-2"></i>
+                        <h5 class="fw-bold mb-0">Análisis y Diagnóstico Clínico (IA)</h5>
                     </div>
-                    <div id="map-medico"></div>
+                    <hr>
+                    <div id="diagnostico-container">
+                        <span class="badge bg-secondary mb-2" id="medico-salud-badge">Cargando...</span>
+                        <h4 class="fw-bold" id="medico-salud-titulo">Esperando datos del paciente...</h4>
+                        <p class="text-muted mb-0" id="medico-salud-msg">El sistema está analizando las constantes vitales en tiempo real enviadas por el arnés.</p>
+                    </div>
                 </div>
             </div>
         </div>
 
     </div>
 
-    <!-- MODAL CALCULADORA FARMACOLÓGICA -->
+    <!-- Modal Calculadora Clínica y Recetario Vet (Exacto a tu captura) -->
     <div class="modal fade" id="modalCalculadora" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title fw-bold"><i class="bi bi-calculator me-2"></i>Calculadora Clinica y Recetario Vet</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
-                    
-                    <form id="formDosis" onsubmit="event.preventDefault();">
-                        <h6 class="fw-bold text-primary border-bottom pb-1 mb-3"><i class="bi bi-person-vcard me-2"></i>Datos del Paciente y Propietario</h6>
-                        
-                        <div class="row g-2 mb-2">
-                            <div class="col-md-4">
-                                <label for="calc-paciente" class="form-label small fw-bold">Nombre Paciente</label>
-                                <input type="text" id="calc-paciente" class="form-control" placeholder="Ej: Max">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="calc-peso" class="form-label small fw-bold">Peso (kg)</label>
-                                <input type="number" step="0.01" min="0" id="calc-peso" class="form-control" placeholder="Ej: 12.5" oninput="ejecutarCalculoVisual()">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="calc-dueno" class="form-label small fw-bold">Propietario</label>
-                                <input type="text" id="calc-dueno" class="form-control" placeholder="Nombre completo">
-                            </div>
+                <div class="modal-body p-4">
+                    <h6 class="text-primary fw-bold mb-3"><i class="bi bi-person-badge me-1"></i> Datos del Paciente y Propietario</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Nombre Paciente</label>
+                            <input type="text" class="form-control" id="calc-paciente" placeholder="Ej: Max">
                         </div>
-
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-4">
-                                <label for="calc-telefono" class="form-label small fw-bold">Telefono Dueño (WhatsApp)</label>
-                                <input type="text" id="calc-telefono" class="form-control" placeholder="Ej: 593987654321">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="calc-correo" class="form-label small fw-bold">Correo Dueño</label>
-                                <input type="email" id="calc-correo" class="form-control" placeholder="correo@ejemplo.com">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="calc-direccion" class="form-label small fw-bold">Direccion</label>
-                                <input type="text" id="calc-direccion" class="form-control" placeholder="Ciudad, Sector">
-                            </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Peso (kg)</label>
+                            <input type="number" class="form-control" id="calc-peso" placeholder="Ej: 12.5" oninput="calcularVolumenAutomatico()">
                         </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Propietario</label>
+                            <input type="text" class="form-control" id="calc-propietario" placeholder="Nombre completo">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Telefono Dueño (WhatsApp)</label>
+                            <input type="text" class="form-control" id="calc-telefono" placeholder="Ej: 593987654321">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Correo Dueño</label>
+                            <input type="email" class="form-control" id="calc-correo" placeholder="correo@ejemplo.com">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Direccion</label>
+                            <input type="text" class="form-control" id="calc-direccion" placeholder="Ciudad, Sector">
+                        </div>
+                    </div>
 
-                        <h6 class="fw-bold text-primary border-bottom pb-1 mb-3"><i class="bi bi-capsule me-2"></i>Prescripcion Farmacologica</h6>
-
-                        <div class="mb-3">
-                            <label for="calc-farmaco-select" class="form-label small fw-bold">Farmaco Predeterminado</label>
-                            <select id="calc-farmaco-select" class="form-select" onchange="seleccionarFarmacoPreset()">
-                                <option value="custom">-- Seleccionar o Manual --</option>
-                                <option value="Meloxicam|0.2|5">Meloxicam (0.2 mg/kg - 5 mg/ml)</option>
-                                <option value="Amoxicilina|15|50">Amoxicilina (15 mg/kg - 50 mg/ml)</option>
-                                <option value="Enrofloxacina|5|50">Enrofloxacina (5 mg/kg - 50 mg/ml)</option>
-                                <option value="Tramadol|3|50">Tramadol (3 mg/kg - 50 mg/ml)</option>
+                    <h6 class="text-primary fw-bold mb-3"><i class="bi bi-capsule me-1"></i> Prescripcion Farmacologica</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold small">Farmaco Predeterminado</label>
+                            <select class="form-select" id="calc-select-farmaco" onchange="seleccionarFarmacoPredefinido()">
+                                <option value="">-- Seleccionar o Manual --</option>
+                                <option value="Meloxicam|0.2|5">Meloxicam (Dosis: 0.2 mg/kg, Conc: 5 mg/ml)</option>
+                                <option value="Amoxicilina|15|50">Amoxicilina (Dosis: 15 mg/kg, Conc: 50 mg/ml)</option>
+                                <option value="Tramadol|2|50">Tramadol (Dosis: 2 mg/kg, Conc: 50 mg/ml)</option>
                             </select>
                         </div>
-
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-4">
-                                <label for="calc-nombre-f" class="form-label small fw-bold">Nombre Farmaco</label>
-                                <input type="text" id="calc-nombre-f" class="form-control" placeholder="Ej: Meloxicam">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="calc-dosis-mgkg" class="form-label small fw-bold">Dosis (mg/kg)</label>
-                                <input type="number" step="0.01" min="0" id="calc-dosis-mgkg" class="form-control" placeholder="0.2" oninput="ejecutarCalculoVisual()">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="calc-conc-mgml" class="form-label small fw-bold">Concentracion (mg/ml)</label>
-                                <input type="number" step="0.01" min="0" id="calc-conc-mgml" class="form-control" placeholder="5" oninput="ejecutarCalculoVisual()">
-                            </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Nombre Farmaco</label>
+                            <input type="text" class="form-control" id="calc-farmaco" placeholder="Ej: Meloxicam">
                         </div>
-
-                        <div class="mb-3">
-                            <label for="calc-sugerencias" class="form-label small fw-bold">Sugerencias y Observaciones Medicas</label>
-                            <textarea id="calc-sugerencias" class="form-control" rows="2" placeholder="Ej: Administrar cada 12 horas con comida durante 5 dias."></textarea>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Dosis (mg/kg)</label>
+                            <input type="number" class="form-control" id="calc-dosis" placeholder="0.2" oninput="calcularVolumenAutomatico()">
                         </div>
-
-                        <div class="row g-2 mb-3">
-                            <div class="col-md-8">
-                                <button type="button" class="btn btn-success btn-lg w-100 fw-bold shadow-sm" onclick="calcularDosisAccion()">
-                                    <i class="bi bi-check-circle-fill me-2"></i>Calcular Dosis y Validar
-                                </button>
-                            </div>
-                            <div class="col-md-4">
-                                <button type="button" class="btn btn-outline-secondary btn-lg w-100 fw-bold shadow-sm" onclick="limpiarCalculadora()">
-                                    <i class="bi bi-erase-fill me-2"></i>Limpiar
-                                </button>
-                            </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small">Concentracion (mg/ml)</label>
+                            <input type="number" class="form-control" id="calc-concentracion" placeholder="5" oninput="calcularVolumenAutomatico()">
                         </div>
-
-                        <!-- ALERTA VERDE DE RESULTADO -->
-                        <div class="alert alert-success p-3 mb-3 border-start border-5 border-success" id="box-resultado-calculo" style="display: none;">
-                            <div class="d-flex align-items-center gap-2 mb-2">
-                                <i class="bi bi-shield-check fs-4 text-success"></i>
-                                <h6 class="fw-bold mb-0 text-success">¡Calculo Correcto y Validado!</h6>
-                            </div>
-                            <div class="row text-center">
-                                <div class="col-6 border-end">
-                                    <span class="label-sub text-dark">Dosis Total</span>
-                                    <h4 class="fw-bold text-dark mb-0 mt-1" id="res-dosis-total">0.00 mg</h4>
-                                </div>
-                                <div class="col-6">
-                                    <span class="label-sub text-dark">Volumen a Administrar</span>
-                                    <h4 class="fw-bold text-success mb-0 mt-1" id="res-volumen-total">0.00 ml</h4>
-                                </div>
-                            </div>
+                        <div class="col-md-12">
+                            <label class="form-label fw-bold small">Sugerencias y Observaciones Medicas</label>
+                            <textarea class="form-control" id="calc-sugerencias" rows="2" placeholder="Ej: Administrar cada 12 horas con comida durante 5 dias."></textarea>
                         </div>
+                    </div>
 
-                        <!-- EXPORTAR / GUARDAR -->
-                        <div class="row g-2">
-                            <div class="col-md-4">
-                                <button type="button" class="btn btn-primary w-100 fw-bold py-2" onclick="guardarEnBaseDatos()">
-                                    <i class="bi bi-database-add me-1"></i> Guardar en BD
-                                </button>
-                            </div>
-                            <div class="col-md-4">
-                                <button type="button" class="btn btn-success w-100 fw-bold py-2" onclick="enviarWhatsApp()">
-                                    <i class="bi bi-whatsapp me-1"></i> Enviar WhatsApp
-                                </button>
-                            </div>
-                            <div class="col-md-4">
-                                <button type="button" class="btn btn-danger w-100 fw-bold py-2" onclick="generarPDF()">
-                                    <i class="bi bi-file-earmark-pdf-fill me-1"></i> Descargar PDF
-                                </button>
-                            </div>
+                    <!-- Resultado oculto operativo -->
+                    <div class="d-none">Resultado: <span id="calc-resultado">0</span> ml</div>
+
+                    <!-- Botones de Acción de la Calculadora (Exactos a tu segunda captura) -->
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <button class="btn btn-success w-100 py-2 fw-bold" onclick="calcularDosisYValidar()"><i class="bi bi-check-circle-fill me-1"></i> Calcular Dosis y Validar</button>
                         </div>
-
-                    </form>
-
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-secondary w-100 py-2 fw-bold" onclick="limpiarCalculadora()"><i class="bi bi-x-circle me-1"></i> Limpiar</button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-primary w-100 py-2 fw-bold" onclick="guardarEnBDDesdeCalculadora()"><i class="bi bi-database-add me-1"></i> Guardar en BD</button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-success w-100 py-2 fw-bold" onclick="enviarWhatsApp()"><i class="bi bi-whatsapp me-1"></i> Enviar WhatsApp</button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-danger w-100 py-2 fw-bold" onclick="exportarPDF()"><i class="bi bi-file-earmark-pdf me-1"></i> Descargar PDF</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- MODAL BASE DE DATOS -->
+    <!-- Modal Base de Datos General de Prescripciones (Exacto a tu primera captura) -->
     <div class="modal fade" id="modalBaseDatos" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-dark text-white">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-database text-warning me-2"></i>Base de Datos General de Prescripciones</h5>
                     <div class="d-flex align-items-center gap-3">
-                        <h5 class="modal-title fw-bold mb-0"><i class="bi bi-database me-2"></i>Base de Datos General de Prescripciones</h5>
-                        <button type="button" class="btn btn-primary btn-sm fw-bold shadow-sm" onclick="abrirNuevaDosificacion()">
-                            <i class="bi bi-plus-circle-fill me-1"></i> + Nueva Dosificacion
-                        </button>
+                        <button class="btn btn-primary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#modalCalculadora" data-bs-dismiss="modal"><i class="bi bi-plus-circle me-1"></i> + Nueva Dosificacion</button>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="table-responsive" style="max-height: 400px;">
-                        <table class="table table-striped table-hover align-middle small">
-                            <thead class="table-dark sticky-top">
+                <div class="modal-body p-0">
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-dark table-hover align-middle mb-0">
+                            <thead class="table-dark sticky-top" style="background-color: #212529;">
                                 <tr>
                                     <th>Fecha</th>
                                     <th>Paciente</th>
@@ -295,335 +233,201 @@
                                     <th>Farmaco</th>
                                     <th>Volumen (ml)</th>
                                     <th>Sugerencias</th>
-                                    <th class="text-center">Accion</th>
+                                    <th>Accion</th>
                                 </tr>
                             </thead>
-                            <tbody id="tabla-dosis-body">
-                                <tr><td colspan="9" class="text-center text-muted">Cargando registros...</td></tr>
+                            <tbody id="tabla-registros">
+                                <!-- Se llena por JS -->
                             </tbody>
                         </table>
                     </div>
                 </div>
-                <div class="modal-footer justify-content-between">
-                    <button type="button" class="btn btn-outline-danger btn-sm fw-bold" onclick="limpiarBaseDatos()">
-                        <i class="bi bi-trash3-fill me-1"></i> Vaciar Base de Datos
-                    </button>
+                <div class="modal-footer border-secondary d-flex justify-content-between">
+                    <button class="btn btn-outline-danger btn-sm" onclick="vaciarBaseDatos()"><i class="bi bi-trash me-1"></i> Vaciar Base de Datos</button>
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar Visor</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Inicialización de Mapa Leaflet
-        let medicoMap = L.map('map-medico').setView([-1.3458, -80.4285], 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap'
-        }).addTo(medicoMap);
-        let medicoMarker = L.marker([-1.3458, -80.4285]).addTo(medicoMap);
-
-        // Recalcular tamaño del mapa cuando se renderiza correctamente la ventana
-        window.addEventListener('resize', () => { medicoMap.invalidateSize(); });
-
-        let calculoUltimo = { dosisTotal: "0.00", volTotal: "0.00", valido: false };
-
-        async function fetchMedicoData() {
-     try {
-        const res = await fetch('/api/telemetria');
-
-        // 1. Manejo estricto de falta de sesión o redirección al Login
-        if (res.status === 401 || res.redirected) {
-            window.location.href = "/login";
-            return;
+        // Reloj de sincronización
+        function actualizarReloj() {
+            const ahora = new Date();
+            document.getElementById('reloj-sync').innerHTML = `<i class="bi bi-clock me-1"></i>Sync: ${ahora.toLocaleTimeString()}`;
         }
+        setInterval(actualizarReloj, 1000);
+        actualizarReloj();
 
-        if (!res.ok) throw new Error("Error en la respuesta del servidor");
-
-        const data = await res.json();
-
-        // 2. Actualización de reloj proveniente del servidor (Ecuador UTC-5)
-        document.getElementById('med-sync-time').innerText = data.ultima_actualizacion || '--:--:--';
-        
-        // 3. Lecturas fijadas en 0 (Modo Standby / Sin datos)
-        document.getElementById('med-val-temp').innerHTML = `${Number(data.temperatura || 0).toFixed(1)} <span class="fs-5">°C</span>`;
-        document.getElementById('med-val-bpm').innerHTML = `${data.ritmo_cardiaco || 0} <span class="fs-5">BPM</span>`;
-        document.getElementById('med-val-act').innerText = data.actividad ? data.actividad.estado : 'En espera';
-        document.getElementById('med-val-arnes').innerText = data.pechera_puesta ? "Seguro" : "Desconectado";
-
-        // 4. Estado de Salud y Badges
-        const diag = data.diagnostico || { badge_class: 'bg-secondary', salud_mascota: 'Arnés Desconectado', mensaje: 'Sin lecturas activas' };
-        
-        const diagBadge = document.getElementById('med-diag-badge');
-        if (diagBadge) {
-            diagBadge.className = `badge ${diag.badge_class}`;
-            diagBadge.innerText = diag.salud_mascota;
-        }
-
-        const arnesBadge = document.getElementById('med-arnes-badge');
-        if (arnesBadge) {
-            arnesBadge.className = data.pechera_puesta ? "badge bg-success" : "badge bg-secondary";
-            arnesBadge.innerText = data.pechera_puesta ? "Arnés Conectado" : "Arnés Desconectado";
-        }
-
-        const diagDesc = document.getElementById('med-diag-desc');
-        if (diagDesc) {
-            diagDesc.innerText = diag.mensaje;
-        }
-
-        // 5. Estado GPS
-        const gpsBadge = document.getElementById('med-gps-badge');
-        if (gpsBadge) {
-            if (data.gps && data.gps.valido) {
-                gpsBadge.className = "badge bg-success";
-                gpsBadge.innerText = "GPS Activo";
-                if (typeof medicoMarker !== 'undefined' && typeof medicoMap !== 'undefined') {
-                    const pos = new L.LatLng(data.gps.latitud, data.gps.longitud);
-                    medicoMarker.setLatLng(pos);
-                    medicoMap.panTo(pos);
+        // Sincronización de datos con el servidor Flask
+        async function syncTelemetria() {
+            try {
+                const response = await fetch('/api/telemetria');
+                if (response.redirected) {
+                    window.location.href = "/login";
+                    return;
                 }
-            } else {
-                gpsBadge.className = "badge bg-secondary";
-                gpsBadge.innerText = "GPS En Espera";
-            }
-        }
-
-    } catch (e) {
-        console.error("Error cargando telemetría:", e);
-    }
-}
-
-        // --- FUNCIONES DE CALCULADORA ---
-        function seleccionarFarmacoPreset() {
-            const val = document.getElementById('calc-farmaco-select').value;
-            if (val !== 'custom') {
-                const p = val.split('|');
-                document.getElementById('calc-nombre-f').value = p[0];
-                document.getElementById('calc-dosis-mgkg').value = p[1];
-                document.getElementById('calc-conc-mgml').value = p[2];
-                ejecutarCalculoVisual();
-            }
-        }
-
-        function ejecutarCalculoVisual() {
-            const peso = parseFloat(document.getElementById('calc-peso').value) || 0;
-            const dosis = parseFloat(document.getElementById('calc-dosis-mgkg').value) || 0;
-            const conc = parseFloat(document.getElementById('calc-conc-mgml').value) || 0;
-
-            if (peso > 0 && dosis > 0 && conc > 0) {
-                calculoUltimo.dosisTotal = (peso * dosis).toFixed(2);
-                calculoUltimo.volTotal = ((peso * dosis) / conc).toFixed(2);
-                calculoUltimo.valido = true;
+                const data = await response.json();
                 
-                document.getElementById('res-dosis-total').innerText = calculoUltimo.dosisTotal + " mg";
-                document.getElementById('res-volumen-total').innerText = calculoUltimo.volTotal + " ml";
-            } else {
-                calculoUltimo = { dosisTotal: "0.00", volTotal: "0.00", valido: false };
-                document.getElementById('res-dosis-total').innerText = "0.00 mg";
-                document.getElementById('res-volumen-total').innerText = "0.00 ml";
-                document.getElementById('box-resultado-calculo').style.display = 'none';
-            }
-        }
-
-        function calcularDosisAccion() {
-            ejecutarCalculoVisual();
-            if (!calculoUltimo.valido) {
-                alert("Por favor complete correctamente los campos numericos (Peso, Dosis y Concentracion).");
-                return;
-            }
-            document.getElementById('box-resultado-calculo').style.display = 'block';
-        }
-
-        function limpiarCalculadora() {
-            document.getElementById('formDosis').reset();
-            document.getElementById('calc-farmaco-select').value = 'custom';
-            calculoUltimo = { dosisTotal: "0.00", volTotal: "0.00", valido: false };
-            document.getElementById('res-dosis-total').innerText = "0.00 mg";
-            document.getElementById('res-volumen-total').innerText = "0.00 ml";
-            document.getElementById('box-resultado-calculo').style.display = 'none';
-        }
-
-        // --- ABRIR NUEVA DOSIFICACIÓN DESDE LA BD ---
-        function abrirNuevaDosificacion() {
-            const elModalBD = document.getElementById('modalBaseDatos');
-            const modalBD = bootstrap.Modal.getInstance(elModalBD);
-            
-            if (modalBD) {
-                modalBD.hide();
-                elModalBD.addEventListener('hidden.bs.modal', function handler() {
-                    elModalBD.removeEventListener('hidden.bs.modal', handler);
-                    limpiarCalculadora();
-                    const modalCalc = new bootstrap.Modal(document.getElementById('modalCalculadora'));
-                    modalCalc.show();
-                });
-            } else {
-                limpiarCalculadora();
-                const modalCalc = new bootstrap.Modal(document.getElementById('modalCalculadora'));
-                modalCalc.show();
-            }
-        }
-
-        // --- ACCIONES EXTRAS ---
-        async function guardarEnBaseDatos() {
-            if (!calculoUltimo.valido) {
-                alert("Primero presione el boton de Calcular Dosis.");
-                return;
-            }
-
-            const payload = {
-                paciente: document.getElementById('calc-paciente').value,
-                peso: parseFloat(document.getElementById('calc-peso').value),
-                propietario: document.getElementById('calc-dueno').value,
-                telefono: document.getElementById('calc-telefono').value,
-                correo: document.getElementById('calc-correo').value,
-                direccion: document.getElementById('calc-direccion').value,
-                farmaco: document.getElementById('calc-nombre-f').value,
-                dosis_mg_kg: parseFloat(document.getElementById('calc-dosis-mgkg').value),
-                concentracion: parseFloat(document.getElementById('calc-conc-mgml').value),
-                sugerencias: document.getElementById('calc-sugerencias').value
-            };
-
-            try {
-                const response = await fetch('/api/guardar_dosis', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const resData = await response.json();
-                if (resData.status === "success") {
-                    alert("¡Prescripcion registrada correctamente en la Base de Datos!");
-                } else {
-                    alert("Ocurrió un error al guardar el registro.");
-                }
-            } catch (e) {
-                console.error("Error guardando:", e);
-                alert("Error de conexión con el servidor.");
-            }
-        }
-
-        function enviarWhatsApp() {
-            if (!calculoUltimo.valido) {
-                alert("Primero debes calcular la dosis.");
-                return;
-            }
-            const tel = document.getElementById('calc-telefono').value.replace(/[^0-9]/g, '');
-            const paciente = document.getElementById('calc-paciente').value;
-            const farmaco = document.getElementById('calc-nombre-f').value;
-            const vol = calculoUltimo.volTotal;
-            const sug = document.getElementById('calc-sugerencias').value;
-
-            const msg = `*VeteTech Telemetry - Receta Medica*%0A` +
-                        `*Paciente:* ${encodeURIComponent(paciente)}%0A` +
-                        `*Farmaco:* ${encodeURIComponent(farmaco)}%0A` +
-                        `*Volumen a administrar:* ${vol} ml%0A` +
-                        `*Indicaciones:* ${encodeURIComponent(sug)}`;
-
-            window.open(`https://wa.me/${tel}?text=${msg}`, '_blank');
-        }
-
-        function generarPDF() {
-            if (!calculoUltimo.valido) {
-                alert("Primero debes calcular la dosis.");
-                return;
-            }
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-
-            doc.setFontSize(16);
-            doc.text("VeteTech Telemetry - Receta Veterinaria", 20, 20);
-            doc.setFontSize(12);
-            doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 20, 30);
-            doc.text(`Paciente: ${document.getElementById('calc-paciente').value}`, 20, 40);
-            doc.text(`Propietario: ${document.getElementById('calc-dueno').value}`, 20, 50);
-            doc.text(`Telefono: ${document.getElementById('calc-telefono').value}`, 20, 60);
-            doc.text(`Farmaco: ${document.getElementById('calc-nombre-f').value}`, 20, 70);
-            doc.text(`Dosis Total: ${calculoUltimo.dosisTotal} mg`, 20, 80);
-            doc.text(`Volumen Inyectable: ${calculoUltimo.volTotal} ml`, 20, 90);
-            doc.text(`Sugerencias: ${document.getElementById('calc-sugerencias').value}`, 20, 100);
-
-            const nombrePaciente = document.getElementById('calc-paciente').value || "Paciente";
-            doc.save(`Receta_${nombrePaciente}.pdf`);
-        }
-
-        // --- GESTIÓN BASE DE DATOS ---
-        async function cargarTablasDB() {
-            try {
-                const res = await fetch('/api/historial_dosis');
-                const data = await res.json();
-                const tbody = document.getElementById('tabla-dosis-body');
-                tbody.innerHTML = '';
-
-                if (!Array.isArray(data) || data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Sin registros aun</td></tr>';
+                if (data.conectado === false) {
+                    document.getElementById('val-temp').innerText = "-- °C";
+                    document.getElementById('val-bpm').innerText = "-- BPM";
+                    document.getElementById('val-actividad').innerText = "Desconectado";
                     return;
                 }
 
-                data.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${item.fecha || '-'}</td>
-                        <td><strong>${item.paciente || '-'}</strong></td>
-                        <td>${item.peso || '0'} kg</td>
-                        <td>${item.propietario || '-'}<br><small class="text-muted">${item.telefono || '-'}</small></td>
-                        <td>${item.direccion || '-'}<br><small class="text-muted">${item.correo || '-'}</small></td>
-                        <td>${item.farmaco || '-'}</td>
-                        <td><span class="badge bg-success fs-6">${item.volumen_ml || '0'} ml</span></td>
-                        <td><small>${item.sugerencias || '-'}</small></td>
-                        <td class="text-center">
-                            <button class="btn btn-outline-danger btn-sm py-1 px-2" title="Limpiar fila" onclick="eliminarFilaDosis(${item.id})">
-                                <i class="bi bi-trash-fill"></i>
-                            </button>
+                document.getElementById('val-temp').innerText = `${data.temperatura.toFixed(1)} °C`;
+                document.getElementById('val-bpm').innerText = `${data.ritmo_cardiaco} BPM`;
+                document.getElementById('val-actividad').innerHTML = `${data.actividad.icono} ${data.actividad.estado}`;
+
+                const diag = data.diagnostico;
+                const badge = document.getElementById('medico-salud-badge');
+                badge.className = `badge mb-2 ${diag.badge_class}`;
+                badge.innerText = diag.salud_mascota;
+                document.getElementById('medico-salud-titulo').innerText = diag.salud_mascota;
+                document.getElementById('medico-salud-msg').innerText = diag.mensaje;
+
+            } catch (err) {
+                console.error("Error al sincronizar telemetría:", err);
+            }
+        }
+
+        setInterval(syncTelemetria, 2000);
+        syncTelemetria();
+
+        // Funciones de la Calculadora
+        function seleccionarFarmacoPredefinido() {
+            const val = document.getElementById('calc-select-farmaco').value;
+            if (!val) return;
+            const partes = val.split('|');
+            document.getElementById('calc-farmaco').value = partes[0];
+            document.getElementById('calc-dosis').value = partes[1];
+            document.getElementById('calc-concentracion').value = partes[2];
+            calcularVolumenAutomatico();
+        }
+
+        function calcularVolumenAutomatico() {
+            const peso = parseFloat(document.getElementById('calc-peso').value);
+            const dosis = parseFloat(document.getElementById('calc-dosis').value);
+            const concentracion = parseFloat(document.getElementById('calc-concentracion').value);
+
+            if (isNaN(peso) || isNaN(dosis) || isNaN(concentracion) || concentracion <= 0) {
+                document.getElementById('calc-resultado').innerText = "0";
+                return;
+            }
+            const resultado = (peso * dosis) / concentracion;
+            document.getElementById('calc-resultado').innerText = resultado.toFixed(2);
+        }
+
+        function calcularDosisYValidar() {
+            calcularVolumenAutomatico();
+            const res = document.getElementById('calc-resultado').innerText;
+            alert(`Dosis calculada y validada con éxito: ${res} ml`);
+        }
+
+        function limpiarCalculadora() {
+            document.getElementById('calc-paciente').value = '';
+            document.getElementById('calc-peso').value = '';
+            document.getElementById('calc-propietario').value = '';
+            document.getElementById('calc-telefono').value = '';
+            document.getElementById('calc-correo').value = '';
+            document.getElementById('calc-direccion').value = '';
+            document.getElementById('calc-select-farmaco').value = '';
+            document.getElementById('calc-farmaco').value = '';
+            document.getElementById('calc-dosis').value = '';
+            document.getElementById('calc-concentracion').value = '';
+            document.getElementById('calc-sugerencias').value = '';
+            document.getElementById('calc-resultado').innerText = '0';
+        }
+
+        function enviarWhatsApp() {
+            const telefono = document.getElementById('calc-telefono').value.trim();
+            const paciente = document.getElementById('calc-paciente').value.trim() || 'Paciente';
+            const farmaco = document.getElementById('calc-farmaco').value.trim() || 'Medicamento';
+            const volumen = document.getElementById('calc-resultado').innerText;
+            const sugerencias = document.getElementById('calc-sugerencias').value.trim();
+
+            const texto = encodeURIComponent(`*Receta VetTag Workstation*\nPaciente: ${paciente}\nFármaco: ${farmaco}\nVolumen a administrar: ${volumen} ml\nIndicaciones: ${sugerencias}`);
+            window.open(`https://api.whatsapp.com/send?phone=${telefono}&text=${texto}`, '_blank');
+        }
+
+        function exportarPDF() {
+            window.print();
+        }
+
+        // Gestión de la Base de Datos con las columnas exactas de tu captura
+        let registros = JSON.parse(localStorage.getItem('registrosClinicosVetTag')) || [];
+
+        function renderRegistros() {
+            const tbody = document.getElementById('tabla-registros');
+            if (registros.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">Sin registros aun</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = '';
+            registros.forEach((reg, index) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${reg.fecha}</td>
+                        <td class="fw-bold">${reg.paciente}</td>
+                        <td>${reg.peso} kg</td>
+                        <td>${reg.propietario}<br><small class="text-muted">${reg.telefono}</small></td>
+                        <td>${reg.direccion}<br><small class="text-muted">${reg.correo}</small></td>
+                        <td>${reg.farmaco}</td>
+                        <td class="fw-bold text-primary">${reg.volumen} ml</td>
+                        <td>${reg.sugerencias}</td>
+                        <td>
+                            <button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="eliminarRegistro(${index})" title="Eliminar"><i class="bi bi-trash"></i></button>
                         </td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            } catch (e) {
-                console.error("Error cargando BD:", e);
-                document.getElementById('tabla-dosis-body').innerHTML = '<tr><td colspan="9" class="text-center text-danger">Error al cargar datos del servidor</td></tr>';
+                    </tr>
+                `;
+            });
+        }
+
+        function guardarEnBDDesdeCalculadora() {
+            const paciente = document.getElementById('calc-paciente').value.trim();
+            const peso = document.getElementById('calc-peso').value.trim();
+            const propietario = document.getElementById('calc-propietario').value.trim();
+            const telefono = document.getElementById('calc-telefono').value.trim();
+            const correo = document.getElementById('calc-correo').value.trim();
+            const direccion = document.getElementById('calc-direccion').value.trim();
+            const farmaco = document.getElementById('calc-farmaco').value.trim();
+            const volumen = document.getElementById('calc-resultado').innerText;
+            const sugerencias = document.getElementById('calc-sugerencias').value.trim();
+
+            if (!paciente || !farmaco) {
+                alert("Por favor ingrese al menos el nombre del paciente y el fármaco.");
+                return;
+            }
+
+            const fecha = new Date().toLocaleDateString();
+            registros.unshift({ fecha, paciente, peso, propietario, telefono, correo, direccion, farmaco, volumen, sugerencias });
+            localStorage.setItem('registrosClinicosVetTag', JSON.stringify(registros));
+            renderRegistros();
+
+            // Cerrar modal de calculadora y abrir el visor de base de datos
+            const modalCalc = bootstrap.Modal.getInstance(document.getElementById('modalCalculadora'));
+            modalCalc.hide();
+            const modalBD = new bootstrap.Modal(document.getElementById('modalBaseDatos'));
+            modalBD.show();
+        }
+
+        function eliminarRegistro(index) {
+            registros.splice(index, 1);
+            localStorage.setItem('registrosClinicosVetTag', JSON.stringify(registros));
+            renderRegistros();
+        }
+
+        function vaciarBaseDatos() {
+            if (confirm("¿Estás seguro de vaciar toda la base de datos?")) {
+                registros = [];
+                localStorage.removeItem('registrosClinicosVetTag');
+                renderRegistros();
             }
         }
 
-        async function eliminarFilaDosis(id) {
-            if (!confirm("¿Deseas eliminar este registro de la base de datos?")) return;
-
-            try {
-                const response = await fetch(`/api/eliminar_dosis/${id}`, { method: 'DELETE' });
-                const resData = await response.json();
-                if (resData.status === "success") {
-                    cargarTablasDB();
-                } else {
-                    alert("No se pudo eliminar el registro.");
-                }
-            } catch (e) {
-                console.error("Error eliminando registro:", e);
-            }
-        }
-
-        async function limpiarBaseDatos() {
-            if (!confirm("¿Estas seguro de que deseas eliminar TODOS los registros de prescripciones?")) return;
-
-            try {
-                const response = await fetch('/api/limpiar_historial', { method: 'DELETE' });
-                const resData = await response.json();
-                
-                if (resData.status === "success") {
-                    alert("Base de datos limpiada correctamente.");
-                    cargarTablasDB();
-                } else {
-                    alert("Ocurrió un error al intentar vaciar la base de datos.");
-                }
-            } catch (e) {
-                console.error("Error vaciando la base de datos:", e);
-            }
-        }
-
-        fetchMedicoData();
-
-// Sincronizar y consultar al servidor exactamente cada 20 segundos (20000 ms)
-setInterval(fetchMedicoData, 20000);
+        renderRegistros();
     </script>
 </body>
 </html>
