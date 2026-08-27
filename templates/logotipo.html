@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VetTag Workstation - Bienvenida</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body { 
+            background: linear-gradient(135deg, #0d6efd 0%, #052c65 100%); 
+            height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            color: white;
+            overflow: hidden;
+            margin: 0;
+            cursor: pointer;
+        }
+        .splash-content {
+            animation: fadeInScale 1.2s ease-in-out;
+        }
+        @keyframes fadeInScale {
+            0% { opacity: 0; transform: scale(0.9); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .logo-box {
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="text-center splash-content px-3" onclick="irAlLogin()">
+        <div class="logo-box">
+            <i class="bi bi-activity text-white fs-1"></i>
+        </div>
+        <h1 class="fw-bold mb-2">VetTag Workstation</h1>
+        <p class="text-white-50 fs-5 mb-4">"Innovación en telemetría y salud veterinaria en tiempo real"</p>
+        
+        <div class="spinner-border spinner-border-sm text-light opacity-75 mb-3" role="status"></div>
+        <div>
+            <small class="text-white-50">Toca la pantalla o espera un momento...</small>
+        </div>
+    </div>
+
+    <script>
+        // Redirige automáticamente al login después de 3.5 segundos
+        function irAlLogin() {
+            window.location.href = "/login"; // Cambia esta ruta según tu estructura en Flask
+        }
+
+        setTimeout(function() {
+            irAlLogin();
+        }, 3500);
+    </script>
+</body>
+</html>
