@@ -1,6 +1,7 @@
 
 import os
 import datetime
+import time
 
 from datetime import timezone, timedelta
 from functools import wraps
@@ -82,7 +83,10 @@ estado_telemetria_actual = {
 
     "conectado": False,
 
-    "ultima_actualizacion": "---"
+    "ultima_actualizacion": "---",
+
+    # Tiempo exacto del último dato recibido
+    "ultimo_dato_timestamp": 0
 }
 
 
@@ -156,7 +160,10 @@ def evaluar_estado_clinico(
     bpm
 ):
 
-    # Sin datos
+    # ------------------------------------------------------
+    # SIN DATOS
+    # ------------------------------------------------------
+
     if temp == 0 and bpm == 0:
 
         return {
@@ -172,7 +179,10 @@ def evaluar_estado_clinico(
         }
 
 
-    # Temperatura elevada
+    # ------------------------------------------------------
+    # TEMPERATURA + RITMO CARDÍACO CRÍTICOS
+    # ------------------------------------------------------
+
     if temp > 39.2 and bpm > 140:
 
         return {
@@ -189,6 +199,10 @@ def evaluar_estado_clinico(
         }
 
 
+    # ------------------------------------------------------
+    # FIEBRE
+    # ------------------------------------------------------
+
     elif temp > 39.2:
 
         return {
@@ -204,9 +218,10 @@ def evaluar_estado_clinico(
         }
 
 
-    # IMPORTANTE:
-    # temperatura 0 significa
-    # sensor todavía no instalado.
+    # ------------------------------------------------------
+    # TEMPERATURA BAJA
+    # ------------------------------------------------------
+
     elif temp > 0 and temp < 37.5:
 
         return {
@@ -223,7 +238,10 @@ def evaluar_estado_clinico(
         }
 
 
-    # Ritmo cardíaco
+    # ------------------------------------------------------
+    # TAQUICARDIA
+    # ------------------------------------------------------
+
     elif bpm > 140:
 
         return {
@@ -239,6 +257,10 @@ def evaluar_estado_clinico(
         }
 
 
+    # ------------------------------------------------------
+    # BRADICARDIA
+    # ------------------------------------------------------
+
     elif bpm > 0 and bpm < 60:
 
         return {
@@ -253,6 +275,10 @@ def evaluar_estado_clinico(
                 "Frecuencia cardíaca baja."
         }
 
+
+    # ------------------------------------------------------
+    # NORMAL
+    # ------------------------------------------------------
 
     else:
 
@@ -629,6 +655,14 @@ def actualizar_telemetria():
         ] = True
 
 
+        # GUARDAR EL MOMENTO EXACTO
+        # EN QUE LLEGÓ EL ÚLTIMO DATO
+
+        estado_telemetria_actual[
+            "ultimo_dato_timestamp"
+        ] = time.time()
+
+
         estado_telemetria_actual[
             "ultima_actualizacion"
         ] = obtener_hora_ecuador().strftime(
@@ -688,7 +722,7 @@ def actualizar_telemetria():
         )
 
         print(
-            "Hora:",
+            "Última actualización:",
             estado_telemetria_actual[
                 "ultima_actualizacion"
             ]
@@ -782,19 +816,103 @@ def actualizar_telemetria():
 @login_required
 def api_telemetria():
 
+
+    # ======================================================
+    # COMPROBAR LOS 20 SEGUNDOS
+    # ======================================================
+
+    ultimo_dato = estado_telemetria_actual.get(
+        "ultimo_dato_timestamp",
+        0
+    )
+
+
+    if ultimo_dato > 0:
+
+        segundos_sin_datos = (
+            time.time() - ultimo_dato
+        )
+
+
+        if segundos_sin_datos >= 20:
+
+            print(
+                "⚠️ Más de 20 segundos sin recibir "
+                "telemetría. Reiniciando valores."
+            )
+
+
+            estado_telemetria_actual[
+                "ritmo_cardiaco"
+            ] = 0
+
+
+            estado_telemetria_actual[
+                "temperatura"
+            ] = 0.0
+
+
+            estado_telemetria_actual[
+                "acx"
+            ] = 0.0
+
+
+            estado_telemetria_actual[
+                "acy"
+            ] = 0.0
+
+
+            estado_telemetria_actual[
+                "acz"
+            ] = 0.0
+
+
+            estado_telemetria_actual[
+                "actividad"
+            ] = {
+
+                "estado":
+                    "En espera de sensor",
+
+                "icono":
+                    "⏳"
+            }
+
+
+            estado_telemetria_actual[
+                "conectado"
+            ] = False
+
+
+            # IMPORTANTE:
+            # ponemos el timestamp en 0 para que
+            # no vuelva a ejecutar continuamente
+
+            estado_telemetria_actual[
+                "ultimo_dato_timestamp"
+            ] = 0
+
+
+    # ======================================================
+    # OBTENER DATOS
+    # ======================================================
+
     temp = estado_telemetria_actual.get(
         "temperatura",
         0.0
     )
+
 
     bpm = estado_telemetria_actual.get(
         "ritmo_cardiaco",
         0
     )
 
+
     actividad = estado_telemetria_actual.get(
         "actividad",
         {
+
             "estado":
                 "En espera de sensor",
 
@@ -803,10 +921,12 @@ def api_telemetria():
         }
     )
 
+
     conectado = estado_telemetria_actual.get(
         "conectado",
         False
     )
+
 
     ultima_actualizacion = (
         estado_telemetria_actual.get(
@@ -816,11 +936,19 @@ def api_telemetria():
     )
 
 
+    # ======================================================
+    # DIAGNÓSTICO
+    # ======================================================
+
     diagnostico = evaluar_estado_clinico(
         temp,
         bpm
     )
 
+
+    # ======================================================
+    # RESPUESTA
+    # ======================================================
 
     return jsonify({
 
@@ -890,12 +1018,14 @@ def guardar_dosis():
             )
         )
 
+
         dosis_mg_kg = float(
             data.get(
                 "dosis_mg_kg",
                 0
             )
         )
+
 
         concentracion = float(
             data.get(
@@ -1197,4 +1327,3 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port
     )
-
