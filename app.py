@@ -73,12 +73,7 @@ estado_telemetria_actual = {
 
     "conectado": False,
 
-    "ultima_actualizacion": "---",
-
-    # Se utiliza únicamente para saber
-    # cuándo fue recibido el último paquete
-    # del ESP32.
-    "ultimo_recibido": None
+    "ultima_actualizacion": "---"
 }
 
 
@@ -95,65 +90,6 @@ def obtener_hora_ecuador():
     return datetime.datetime.now(
         zona_ecuador
     )
-
-
-# ==========================================================
-# VERIFICAR CONEXIÓN DEL ESP32
-# ==========================================================
-
-def verificar_conexion_telemetria():
-
-    ultimo_recibido = estado_telemetria_actual.get(
-        "ultimo_recibido"
-    )
-
-    if ultimo_recibido is None:
-
-        estado_telemetria_actual["conectado"] = False
-
-        return False
-
-
-    ahora = obtener_hora_ecuador()
-
-    diferencia = (
-        ahora - ultimo_recibido
-    ).total_seconds()
-
-
-    # Si pasan 20 segundos sin recibir
-    # información del ESP32, se considera
-    # desconectado.
-
-    if diferencia > 20:
-
-        estado_telemetria_actual["conectado"] = False
-
-        estado_telemetria_actual["ritmo_cardiaco"] = 0
-
-        estado_telemetria_actual["temperatura"] = 0.0
-
-        estado_telemetria_actual["acx"] = 0.0
-
-        estado_telemetria_actual["acy"] = 0.0
-
-        estado_telemetria_actual["acz"] = 0.0
-
-        estado_telemetria_actual["actividad"] = {
-            "estado": "Sin conexión de sensores",
-            "icono": "🔴"
-        }
-
-        estado_telemetria_actual[
-            "ultima_actualizacion"
-        ] = "---"
-
-        return False
-
-
-    estado_telemetria_actual["conectado"] = True
-
-    return True
 
 
 # ==========================================================
@@ -207,8 +143,6 @@ def evaluar_estado_clinico(
     bpm
 ):
 
-    # Sin datos del ESP32
-
     if temp == 0 and bpm == 0:
 
         return {
@@ -222,8 +156,6 @@ def evaluar_estado_clinico(
                 "A la espera de datos del ESP32."
         }
 
-
-    # Ritmo cardíaco alto
 
     if bpm > 140:
 
@@ -239,8 +171,6 @@ def evaluar_estado_clinico(
         }
 
 
-    # Ritmo cardíaco bajo
-
     if 0 < bpm < 60:
 
         return {
@@ -254,8 +184,6 @@ def evaluar_estado_clinico(
                 "Frecuencia cardíaca baja."
         }
 
-
-    # Temperatura
 
     if temp > 39.2:
 
@@ -474,8 +402,6 @@ def cambiar_credenciales():
 @login_required
 def panel_dueno():
 
-    verificar_conexion_telemetria()
-
     return render_template(
         "dueno.html"
     )
@@ -488,8 +414,6 @@ def panel_dueno():
 @app.route("/medico")
 @login_required
 def panel_medico():
-
-    verificar_conexion_telemetria()
 
     return render_template(
         "medico.html"
@@ -551,11 +475,6 @@ def actualizar_telemetria():
                 )
             )
 
-
-        # También permite "bpm"
-        # sin alterar el funcionamiento
-        # anterior.
-
         elif "bpm" in data:
 
             estado_telemetria_actual[
@@ -568,7 +487,7 @@ def actualizar_telemetria():
 
 
         # ==================================================
-        # ACELERÓMETRO
+        # ACELERÓMETRO MPU6050
         # ==================================================
 
         if "acx" in data:
@@ -602,64 +521,57 @@ def actualizar_telemetria():
         # ACTIVIDAD
         # ==================================================
 
-        # Solamente cambia la actividad
-        # si el ESP32 realmente la envía.
-
         if "actividad" in data:
 
             actividad = str(
                 data["actividad"]
             )
 
+        else:
 
-            if actividad == "En Reposo":
-
-                icono = "🟢"
-
-            elif actividad == "En Movimiento":
-
-                icono = "🟡"
-
-            elif actividad == "Movimiento Intenso":
-
-                icono = "🔴"
-
-            else:
-
-                icono = "⚪"
+            actividad = (
+                estado_telemetria_actual[
+                    "actividad"
+                ]["estado"]
+            )
 
 
-            estado_telemetria_actual[
-                "actividad"
-            ] = {
+        if actividad == "En Reposo":
 
-                "estado": actividad,
+            icono = "🟢"
 
-                "icono": icono
+        elif actividad == "En Movimiento":
 
-            }
+            icono = "🟡"
+
+        elif actividad == "Movimiento Intenso":
+
+            icono = "🔴"
+
+        else:
+
+            icono = "⚪"
+
+
+        estado_telemetria_actual[
+            "actividad"
+        ] = {
+
+            "estado": actividad,
+
+            "icono": icono
+
+        }
 
 
         # ==================================================
         # CONEXIÓN
         # ==================================================
 
-        # Cada paquete recibido del ESP32
-        # reinicia el contador de 20 segundos.
-
-        estado_telemetria_actual[
-            "ultimo_recibido"
-        ] = obtener_hora_ecuador()
-
-
         estado_telemetria_actual[
             "conectado"
         ] = True
 
-
-        # ==================================================
-        # FECHA Y HORA
-        # ==================================================
 
         estado_telemetria_actual[
             "ultima_actualizacion"
@@ -695,9 +607,7 @@ def actualizar_telemetria():
 
         print(
             "Actividad:",
-            estado_telemetria_actual[
-                "actividad"
-            ]["estado"]
+            actividad
         )
 
         print(
@@ -731,10 +641,6 @@ def actualizar_telemetria():
         print("================================")
         print()
 
-
-        # ==================================================
-        # RESPUESTA AL ESP32
-        # ==================================================
 
         return jsonify({
 
@@ -816,12 +722,6 @@ def actualizar_telemetria():
 @login_required
 def api_telemetria():
 
-    # Verificar si han pasado 20 segundos
-    # desde el último paquete del ESP32.
-
-    verificar_conexion_telemetria()
-
-
     temperatura = estado_telemetria_actual.get(
         "temperatura",
         0.0
@@ -856,34 +756,10 @@ def api_telemetria():
     )
 
 
-    # Si está desconectado no se conservan
-    # los datos anteriores.
-
-    if not conectado:
-
-        temperatura = 0.0
-
-        ritmo_cardiaco = 0
-
-        actividad = {
-            "estado":
-                "Sin conexión de sensores",
-
-            "icono":
-                "🔴"
-        }
-
-        diagnostico = evaluar_estado_clinico(
-            0,
-            0
-        )
-
-    else:
-
-        diagnostico = evaluar_estado_clinico(
-            temperatura,
-            ritmo_cardiaco
-        )
+    diagnostico = evaluar_estado_clinico(
+        temperatura,
+        ritmo_cardiaco
+    )
 
 
     return jsonify({
@@ -910,19 +786,19 @@ def api_telemetria():
             estado_telemetria_actual.get(
                 "acx",
                 0.0
-            ) if conectado else 0.0,
+            ),
 
         "acy":
             estado_telemetria_actual.get(
                 "acy",
                 0.0
-            ) if conectado else 0.0,
+            ),
 
         "acz":
             estado_telemetria_actual.get(
                 "acz",
                 0.0
-            ) if conectado else 0.0
+            )
 
     })
 
