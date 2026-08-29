@@ -155,7 +155,6 @@ def login_required(f):
 def evaluar_estado_clinico(
     temp,
     bpm,
-    arnes_puesto
 ):
 
     if not arnes_puesto:
@@ -635,38 +634,7 @@ def actualizar_telemetria():
         # PECHERA
         # --------------------------------------------------
 
-        if "pechera_puesta" in data:
-
-            valor = data[
-                "pechera_puesta"
-            ]
-
-            # Convertir correctamente
-            # valores booleanos enviados
-            # como texto.
-
-            if isinstance(
-                valor,
-                str
-            ):
-
-                valor = valor.lower() in [
-                    "true",
-                    "1",
-                    "si",
-                    "sí",
-                    "on"
-                ]
-
-            estado_telemetria_actual[
-                "pechera_puesta"
-            ] = bool(valor)
-
-        else:
-
-            estado_telemetria_actual[
-                "pechera_puesta"
-            ] = True
+       
 
 
         # --------------------------------------------------
@@ -742,12 +710,6 @@ def actualizar_telemetria():
             ]
         )
 
-        print(
-            "Pechera:",
-            estado_telemetria_actual[
-                "pechera_puesta"
-            ]
-        )
 
         print(
             "Hora:",
@@ -856,10 +818,7 @@ def api_telemetria():
         0
     )
 
-    pechera = estado_telemetria_actual.get(
-        "pechera_puesta",
-        False
-    )
+
 
     actividad = estado_telemetria_actual.get(
         "actividad",
