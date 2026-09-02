@@ -1,3 +1,4 @@
+```python
 import os
 import datetime
 
@@ -95,15 +96,20 @@ def obtener_hora_ecuador():
         ZONA_HORARIA_ECUADOR
     )
 
+
 def verificar_desconexion():
+
     global estado_telemetria_actual
 
-    ultima = estado_telemetria_actual.get("ultima_actualizacion")
+    ultima = estado_telemetria_actual.get(
+        "ultima_actualizacion"
+    )
 
     if not ultima or ultima == "---":
         return
 
     try:
+
         hora_ultima = datetime.datetime.strptime(
             ultima,
             "%H:%M:%S"
@@ -114,16 +120,24 @@ def verificar_desconexion():
         ultima_datetime = datetime.datetime.combine(
             ahora.date(),
             hora_ultima
-        ).replace(tzinfo=ZONA_HORARIA_ECUADOR)
+        ).replace(
+            tzinfo=ZONA_HORARIA_ECUADOR
+        )
 
-        segundos = (ahora - ultima_datetime).total_seconds()
+        segundos = (
+            ahora - ultima_datetime
+        ).total_seconds()
 
         if segundos > 45:
 
             estado_telemetria_actual["ritmo_cardiaco"] = 0
+
             estado_telemetria_actual["temperatura"] = 0.0
+
             estado_telemetria_actual["acx"] = 0.0
+
             estado_telemetria_actual["acy"] = 0.0
+
             estado_telemetria_actual["acz"] = 0.0
 
             estado_telemetria_actual["actividad"] = {
@@ -134,7 +148,12 @@ def verificar_desconexion():
             estado_telemetria_actual["conectado"] = False
 
     except Exception as e:
-        print("ERROR VERIFICANDO DESCONEXIÓN:", e)
+
+        print(
+            "ERROR VERIFICANDO DESCONEXIÓN:",
+            e
+        )
+
 
 # ==========================================================
 # CAMBIO DE CLAVE
@@ -195,8 +214,6 @@ def evaluar_estado_clinico(
     bpm
 ):
 
-    # Sin datos
-
     if temp == 0 and bpm == 0:
 
         return {
@@ -210,8 +227,6 @@ def evaluar_estado_clinico(
                 "Esperando datos del ESP32."
         }
 
-
-    # Temperatura elevada
 
     if temp > 39.2 and bpm > 140:
 
@@ -242,10 +257,6 @@ def evaluar_estado_clinico(
         }
 
 
-    # IMPORTANTE:
-    # temperatura 0 significa
-    # sensor todavía no instalado.
-
     elif temp > 0 and temp < 37.5:
 
         return {
@@ -260,8 +271,6 @@ def evaluar_estado_clinico(
                 "debajo del rango establecido."
         }
 
-
-    # Ritmo cardíaco
 
     elif bpm > 140:
 
@@ -549,112 +558,178 @@ def actualizar_telemetria():
 
 
         # ==================================================
-        # TEMPERATURA
+        # SENSOR DE TEMPERATURA
         # ==================================================
 
         if "temperatura" in data:
 
-            estado_telemetria_actual[
-                "temperatura"
-            ] = float(
-                data["temperatura"]
-            )
+            try:
+
+                valor = data.get(
+                    "temperatura"
+                )
+
+                if valor is not None:
+
+                    estado_telemetria_actual[
+                        "temperatura"
+                    ] = float(valor)
+
+            except (ValueError, TypeError):
+
+                print(
+                    "ADVERTENCIA: temperatura inválida. "
+                    "Se conserva el último valor."
+                )
 
 
         # ==================================================
-        # RITMO CARDÍACO
+        # SENSOR DE RITMO CARDÍACO
         # ==================================================
 
         if "ritmo_cardiaco" in data:
 
-            estado_telemetria_actual[
-                "ritmo_cardiaco"
-            ] = int(
-                float(
-                    data["ritmo_cardiaco"]
+            try:
+
+                valor = data.get(
+                    "ritmo_cardiaco"
                 )
-            )
+
+                if valor is not None:
+
+                    estado_telemetria_actual[
+                        "ritmo_cardiaco"
+                    ] = int(
+                        float(valor)
+                    )
+
+            except (ValueError, TypeError):
+
+                print(
+                    "ADVERTENCIA: ritmo cardíaco inválido. "
+                    "Se conserva el último valor."
+                )
 
 
         # ==================================================
-        # ACELERÓMETRO X
+        # MPU6050 - ACELERÓMETRO X
         # ==================================================
 
         if "acx" in data:
 
-            estado_telemetria_actual[
-                "acx"
-            ] = float(
-                data["acx"]
-            )
+            try:
+
+                valor = data.get(
+                    "acx"
+                )
+
+                if valor is not None:
+
+                    estado_telemetria_actual[
+                        "acx"
+                    ] = float(valor)
+
+            except (ValueError, TypeError):
+
+                print(
+                    "ADVERTENCIA: ACX inválido. "
+                    "Se conserva el último valor."
+                )
 
 
         # ==================================================
-        # ACELERÓMETRO Y
+        # MPU6050 - ACELERÓMETRO Y
         # ==================================================
 
         if "acy" in data:
 
-            estado_telemetria_actual[
-                "acy"
-            ] = float(
-                data["acy"]
-            )
+            try:
+
+                valor = data.get(
+                    "acy"
+                )
+
+                if valor is not None:
+
+                    estado_telemetria_actual[
+                        "acy"
+                    ] = float(valor)
+
+            except (ValueError, TypeError):
+
+                print(
+                    "ADVERTENCIA: ACY inválido. "
+                    "Se conserva el último valor."
+                )
 
 
         # ==================================================
-        # ACELERÓMETRO Z
+        # MPU6050 - ACELERÓMETRO Z
         # ==================================================
 
         if "acz" in data:
 
-            estado_telemetria_actual[
-                "acz"
-            ] = float(
-                data["acz"]
-            )
+            try:
+
+                valor = data.get(
+                    "acz"
+                )
+
+                if valor is not None:
+
+                    estado_telemetria_actual[
+                        "acz"
+                    ] = float(valor)
+
+            except (ValueError, TypeError):
+
+                print(
+                    "ADVERTENCIA: ACZ inválido. "
+                    "Se conserva el último valor."
+                )
 
 
         # ==================================================
         # ACTIVIDAD
         # ==================================================
 
-        actividad = str(
-            data.get(
-                "actividad",
-                "En Reposo"
+        if "actividad" in data:
+
+            actividad = str(
+                data.get(
+                    "actividad"
+                )
             )
-        )
 
 
-        if actividad == "En Reposo":
+            if actividad == "En Reposo":
 
-            icono = "🟢"
+                icono = "🟢"
 
-        elif actividad == "En Movimiento":
+            elif actividad == "En Movimiento":
 
-            icono = "🟡"
+                icono = "🟡"
 
-        elif actividad == "Movimiento Intenso":
+            elif actividad == "Movimiento Intenso":
 
-            icono = "🔴"
+                icono = "🔴"
 
-        else:
+            else:
 
-            icono = "⚪"
+                icono = "⚪"
 
 
-        estado_telemetria_actual[
-            "actividad"
-        ] = {
+            estado_telemetria_actual[
+                "actividad"
+            ] = {
 
-            "estado":
-                actividad,
+                "estado":
+                    actividad,
 
-            "icono":
-                icono
+                "icono":
+                    icono
 
-        }
+            }
 
 
         # ==================================================
@@ -709,7 +784,9 @@ def actualizar_telemetria():
 
         print(
             "Actividad:",
-            actividad
+            estado_telemetria_actual[
+                "actividad"
+            ]["estado"]
         )
 
         print(
@@ -775,28 +852,6 @@ def actualizar_telemetria():
                 ]
 
         }), 200
-
-
-    except (ValueError, TypeError) as e:
-
-        print(
-            "ERROR EN LOS DATOS:",
-            str(e)
-        )
-
-        return jsonify({
-
-            "status":
-                "error",
-
-            "mensaje":
-                "Los datos enviados tienen "
-                "un formato incorrecto.",
-
-            "detalle":
-                str(e)
-
-        }), 400
 
 
     except Exception as e:
@@ -1252,3 +1307,4 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port
     )
+```
