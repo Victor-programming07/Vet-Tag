@@ -118,7 +118,7 @@ def verificar_desconexion():
 
         segundos = (ahora - ultima_datetime).total_seconds()
 
-        if segundos > 10:
+        if segundos > 45:
 
             estado_telemetria_actual["ritmo_cardiaco"] = 0
             estado_telemetria_actual["temperatura"] = 0.0
